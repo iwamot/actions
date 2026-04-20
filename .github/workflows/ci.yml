@@ -1,0 +1,14 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: iwamot/workflows/.github/workflows/ci.yml@2eb949976d5b3005c989365f20894e15a3353886 # v0.10.0
