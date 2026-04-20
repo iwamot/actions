@@ -1,0 +1,61 @@
+name: 'Docker build digest'
+description: 'Build a Docker image for a single platform by digest and upload it as an artifact for later manifest merging.'
+
+inputs:
+  registry_image:
+    description: 'Full image URI (e.g. public.ecr.aws/xxxxxxxx/namespace/repo or ghcr.io/owner/repo)'
+    required: true
+  platform:
+    description: 'Target platform (e.g. linux/amd64)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+      run: |
+        echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
+
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+      with:
+        images: ${{ inputs.registry_image }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+    - name: Build and push by digest
+      id: build
+      uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+      with:
+        platforms: ${{ inputs.platform }}
+        labels: ${{ steps.meta.outputs.labels }}
+        outputs: type=image,name=${{ inputs.registry_image }},push-by-digest=true,name-canonical=true,push=true
+        cache-from: type=registry,ref=${{ inputs.registry_image }}:cache-${{ env.PLATFORM_PAIR }}
+        cache-to: type=registry,ref=${{ inputs.registry_image }}:cache-${{ env.PLATFORM_PAIR }},mode=max
+
+    - name: Export digest
+      shell: bash
+      env:
+        STEPS_BUILD_OUTPUTS_DIGEST: ${{ steps.build.outputs.digest }}
+      run: |
+        mkdir -p /tmp/digests
+        digest="${STEPS_BUILD_OUTPUTS_DIGEST}"
+        touch "/tmp/digests/${digest#sha256:}"
+
+    - name: Upload digest
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: digests-${{ env.PLATFORM_PAIR }}
+        path: /tmp/digests/*
+        if-no-files-found: error
+        retention-days: 1

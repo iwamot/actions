@@ -6,11 +6,43 @@ iwamot's shared GitHub Actions composite actions.
 
 | Action | Purpose |
 |--------|---------|
+| `docker-build-digest` | Build a Docker image for a single platform by digest and upload it as an artifact. |
 | `mise-validate` | Checkout caller repo, setup mise from `mise.toml`, and run `validate.sh`. |
 
 ## Usage
 
 Each action is invoked from a workflow step via `uses:`.
+
+### `docker-build-digest`
+
+Per-platform leg of a multi-arch Docker build. Builds the image, pushes to the registry by digest (no tag), and uploads the digest as an artifact so a downstream job can merge platform digests into a manifest list.
+
+The caller must log in to the target registry before invoking this action. This action handles checkout internally, so the caller should not run `actions/checkout` before it.
+
+```yaml
+jobs:
+  build:
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      # Registry login usually requires id-token: write (OIDC) or packages: write (GHCR).
+    strategy:
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      # ... registry login ...
+      - uses: iwamot/actions/docker-build-digest@<sha> # vX.X.X
+        with:
+          registry_image: ghcr.io/owner/repo
+          platform: ${{ matrix.platform }}
+```
 
 ### `mise-validate`
 
