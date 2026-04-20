@@ -7,6 +7,7 @@ iwamot's shared GitHub Actions composite actions.
 | Action | Purpose |
 |--------|---------|
 | `docker-build-digest` | Build a Docker image for a single platform by digest and upload it as an artifact. |
+| `docker-sign-sbom` | Sign a Docker image with cosign (keyless) and attach an SBOM attestation. |
 | `mise-validate` | Checkout caller repo, setup mise from `mise.toml`, and run `validate.sh`. |
 
 ## Usage
@@ -42,6 +43,29 @@ jobs:
         with:
           registry_image: ghcr.io/owner/repo
           platform: ${{ matrix.platform }}
+```
+
+### `docker-sign-sbom`
+
+Signs an image with cosign (keyless via OIDC) and attaches a SPDX-JSON SBOM as a signed attestation. Intended as the final stage of a multi-arch publish flow, consuming the manifest digest emitted by `docker-merge-manifest`.
+
+The caller must log in to the target registry before invoking this action and must grant `id-token: write` for cosign's keyless signing.
+
+```yaml
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      # Additional permissions depend on the registry (e.g. packages: write for GHCR).
+    needs:
+      - merge
+    steps:
+      # ... registry login ...
+      - uses: iwamot/actions/docker-sign-sbom@<sha> # vX.X.X
+        with:
+          registry_image: ghcr.io/owner/repo
+          digest: ${{ needs.merge.outputs.digest }}
 ```
 
 ### `mise-validate`

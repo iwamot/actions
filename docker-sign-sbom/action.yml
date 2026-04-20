@@ -1,0 +1,40 @@
+name: 'Docker sign SBOM'
+description: 'Sign a Docker image with cosign (keyless) and attach an SBOM attestation.'
+
+inputs:
+  registry_image:
+    description: 'Full image URI (e.g. public.ecr.aws/xxxxxxxx/namespace/repo or ghcr.io/owner/repo)'
+    required: true
+  digest:
+    description: 'Image digest to sign (e.g. sha256:abcd...)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install cosign
+      uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
+    - name: Sign the image
+      shell: bash
+      env:
+        REGISTRY_IMAGE: ${{ inputs.registry_image }}
+        DIGEST: ${{ inputs.digest }}
+      run: |
+        cosign sign --yes "${REGISTRY_IMAGE}@${DIGEST}"
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+      with:
+        image: ${{ inputs.registry_image }}@${{ inputs.digest }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+        upload-release-assets: false
+
+    - name: Attest SBOM
+      shell: bash
+      env:
+        REGISTRY_IMAGE: ${{ inputs.registry_image }}
+        DIGEST: ${{ inputs.digest }}
+      run: |
+        cosign attest --yes --predicate sbom.spdx.json --type spdxjson "${REGISTRY_IMAGE}@${DIGEST}"
