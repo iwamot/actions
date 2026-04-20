@@ -1,0 +1,60 @@
+name: 'Docker merge manifest'
+description: 'Merge per-platform digests into a manifest list, push it with semver and latest tags, and return the manifest digest.'
+
+inputs:
+  registry_image:
+    description: 'Full image URI (e.g. public.ecr.aws/xxxxxxxx/namespace/repo or ghcr.io/owner/repo)'
+    required: true
+
+outputs:
+  version:
+    description: 'The semver version derived by docker/metadata-action.'
+    value: ${{ steps.meta.outputs.version }}
+  digest:
+    description: 'The manifest list digest (sha256:...).'
+    value: ${{ steps.digest.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Download digests
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        path: /tmp/digests
+        pattern: digests-*
+        merge-multiple: true
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+      with:
+        images: ${{ inputs.registry_image }}
+        tags: |
+          type=semver,pattern={{version}}
+
+    - name: Create manifest list and push
+      shell: bash
+      working-directory: /tmp/digests
+      env:
+        REGISTRY_IMAGE: ${{ inputs.registry_image }}
+      run: |
+        readarray -t tag_names < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+        tag_args=()
+        for tag in "${tag_names[@]}"; do
+          tag_args+=("-t" "$tag")
+        done
+        readarray -t digest_array < <(printf "${REGISTRY_IMAGE}@sha256:%s\n" *)
+        docker buildx imagetools create "${tag_args[@]}" "${digest_array[@]}"
+
+    - name: Get image digest
+      id: digest
+      shell: bash
+      env:
+        REGISTRY_IMAGE: ${{ inputs.registry_image }}
+        STEPS_META_OUTPUTS_VERSION: ${{ steps.meta.outputs.version }}
+      run: |
+        digest=$(docker buildx imagetools inspect "${REGISTRY_IMAGE}:${STEPS_META_OUTPUTS_VERSION}" --format '{{json .Manifest.Digest}}' | tr -d '"')
+        echo "digest=${digest}" >> "$GITHUB_OUTPUT"
