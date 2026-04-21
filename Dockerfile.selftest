@@ -1,0 +1,4 @@
+# Test fixture for the self-test workflow. Not used to build any image.
+FROM alpine:3.22
+
+CMD ["echo", "hello"]
