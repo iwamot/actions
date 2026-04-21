@@ -8,6 +8,10 @@ inputs:
   platform:
     description: 'Target platform (e.g. linux/amd64)'
     required: true
+  file:
+    description: 'Path to the Dockerfile'
+    required: false
+    default: Dockerfile
 
 runs:
   using: composite
@@ -37,6 +41,7 @@ runs:
       id: build
       uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
       with:
+        file: ${{ inputs.file }}
         platforms: ${{ inputs.platform }}
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=image,name=${{ inputs.registry_image }},push-by-digest=true,name-canonical=true,push=true
