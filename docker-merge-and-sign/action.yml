@@ -5,6 +5,11 @@ inputs:
   registry_image:
     description: 'Full image URI (e.g. public.ecr.aws/xxxxxxxx/namespace/repo or ghcr.io/owner/repo)'
     required: true
+  tags:
+    description: 'Tags input forwarded to docker/metadata-action'
+    required: false
+    default: |
+      type=semver,pattern={{version}}
 
 runs:
   using: composite
@@ -24,8 +29,7 @@ runs:
       uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
       with:
         images: ${{ inputs.registry_image }}
-        tags: |
-          type=semver,pattern={{version}}
+        tags: ${{ inputs.tags }}
 
     - name: Create manifest list and push
       shell: bash

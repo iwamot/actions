@@ -1,0 +1,81 @@
+name: Self-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY_IMAGE: ttl.sh/iwamot-actions-selftest-${{ github.run_id }}
+
+jobs:
+  mise-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./mise-validate
+
+  docker-build:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./docker-build-digest
+        with:
+          registry_image: ${{ env.REGISTRY_IMAGE }}
+          platform: ${{ matrix.platform }}
+          file: Dockerfile.selftest
+
+  docker-merge-and-sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    needs: docker-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./docker-merge-and-sign
+        with:
+          registry_image: ${{ env.REGISTRY_IMAGE }}
+          tags: type=raw,value=selftest-${{ github.run_id }}
+
+  self-test:
+    needs:
+      - mise-validate
+      - docker-build
+      - docker-merge-and-sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions: {}
+    steps:
+      - run: 'true'
