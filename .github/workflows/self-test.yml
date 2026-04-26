@@ -12,6 +12,11 @@ permissions:
 env:
   REGISTRY_IMAGE: ttl.sh/iwamot-actions-selftest-${{ github.run_id }}
 
+# Note: uv-publish has no self-test job.
+# PyPI Trusted Publishing requires a real OIDC exchange with PyPI/TestPyPI,
+# and no public mock implements that endpoint. Local PyPI servers (devpi,
+# pypiserver) only speak basic/token auth, which would bypass the action's
+# main code path. Static checks (zizmor, actionlint) cover syntax.
 jobs:
   mise-validate:
     runs-on: ubuntu-latest
