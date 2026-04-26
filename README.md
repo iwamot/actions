@@ -9,6 +9,7 @@ iwamot's shared GitHub Actions composite actions.
 | `docker-build-digest` | Build a Docker image for a single platform by digest and upload it as an artifact. |
 | `docker-merge-and-sign` | Merge per-platform digests into a manifest list, push it with semver and latest tags, then sign the image with cosign and attach an SBOM attestation. |
 | `mise-validate` | Checkout caller repo, setup mise from `mise.toml`, and run `validate.sh`. |
+| `uv-publish` | Checkout caller repo, build with `uv`, and publish to PyPI via Trusted Publishing. |
 
 ## Usage
 
@@ -87,6 +88,34 @@ jobs:
       contents: read
     steps:
       - uses: iwamot/actions/mise-validate@<sha> # vX.X.X
+```
+
+### `uv-publish`
+
+Build the caller's package with `uv` and publish to PyPI via Trusted Publishing. This action handles checkout internally, so the caller should not run `actions/checkout` before it.
+
+The caller must register the calling workflow as a Trusted Publisher on PyPI and grant `id-token: write` for OIDC. A `production` environment is recommended at the caller's job level.
+
+```yaml
+name: Publish
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish-pypi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: iwamot/actions/uv-publish@<sha> # vX.X.X
 ```
 
 ## Validation
