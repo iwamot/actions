@@ -6,8 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY_IMAGE: ttl.sh/iwamot-actions-selftest-${{ github.run_id }}
@@ -19,6 +22,7 @@ env:
 # paths. Static checks (zizmor, actionlint) cover syntax.
 jobs:
   mise-validate:
+    name: mise-validate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -31,6 +35,7 @@ jobs:
       - uses: ./mise-validate
 
   docker-build:
+    name: docker-build
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     permissions:
@@ -58,11 +63,12 @@ jobs:
           file: Dockerfile.selftest
 
   docker-merge-and-sign:
+    name: docker-merge-and-sign
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write
+      id-token: write  # to mint OIDC token for image signing
     needs: docker-build
     steps:
       - name: Checkout
@@ -75,6 +81,7 @@ jobs:
           tags: type=raw,value=selftest-${{ github.run_id }}
 
   self-test:
+    name: self-test
     needs:
       - mise-validate
       - docker-build
