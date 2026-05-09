@@ -10,6 +10,8 @@ iwamot's shared GitHub Actions composite actions.
 | `docker-merge-and-sign` | Merge per-platform digests into a manifest list, push it with semver and latest tags, then sign the image with cosign and attach an SBOM attestation. |
 | `mise-validate` | Checkout caller repo, setup mise from `mise.toml`, and run `validate.sh`. |
 | `npm-publish` | Checkout caller repo, install with `aube`, set version from tag, build, and publish to npm with provenance. |
+| `release-draft` | Create a draft GitHub Release for the pushed tag with auto-generated notes; idempotent (recreates an existing draft for the tag). |
+| `release-publish` | Publish (un-draft) the GitHub Release for the pushed tag. |
 | `uv-publish` | Checkout caller repo, build with `uv`, and publish to PyPI via Trusted Publishing. |
 
 ## Usage
@@ -118,6 +120,36 @@ jobs:
     steps:
       - uses: iwamot/actions/npm-publish@<sha> # vX.X.X
 ```
+
+### `release-draft`
+
+Create a draft GitHub Release for the pushed tag (`${{ github.ref_name }}`) with GitHub auto-generated notes. Idempotent on re-run: if a draft for the same tag already exists, it is deleted (along with any attached assets) and recreated; if a non-draft Release for the tag exists, the action fails to avoid clobbering a published Release.
+
+Intended to be the first step of a release workflow, paired with a channel-specific publish step (e.g., `goreleaser`, `npm-publish`, `uv-publish`, Docker push) and `release-publish` at the end. The composite uses only `gh` CLI; no checkout required.
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: iwamot/actions/release-draft@<sha> # vX.X.X
+      # ... channel-specific publish step ...
+      - uses: iwamot/actions/release-publish@<sha> # vX.X.X
+```
+
+### `release-publish`
+
+Flip the draft GitHub Release for the pushed tag (`${{ github.ref_name }}`) to published. Intended as the final step after a channel-specific publish step has succeeded; see the `release-draft` example above for usage shape.
 
 ### `uv-publish`
 

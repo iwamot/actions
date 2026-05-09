@@ -1,0 +1,14 @@
+name: 'release publish'
+description: 'Publish (un-draft) the GitHub Release for the pushed tag.'
+
+runs:
+  using: composite
+  steps:
+    - name: Publish Release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        TAG: ${{ github.ref_name }}
+      run: |
+        gh release edit "${TAG}" --draft=false
