@@ -8,6 +8,7 @@ iwamot's shared GitHub Actions composite actions.
 |--------|---------|
 | `docker-build-digest` | Build a Docker image for a single platform by digest and upload it as an artifact. |
 | `docker-merge-and-sign` | Merge per-platform digests into a manifest list, push it with semver and latest tags, then sign the image with cosign and attach an SBOM attestation. |
+| `go-publish` | Checkout caller repo, setup mise, and run `goreleaser release` for the pushed tag. |
 | `mise-validate` | Checkout caller repo, setup mise from `mise.toml`, and run `validate.sh`. |
 | `npm-publish` | Checkout caller repo, install with `aube`, set version from tag, build, and publish to npm with provenance. |
 | `release-draft` | Create a draft GitHub Release for the pushed tag with auto-generated notes; idempotent (recreates an existing draft for the tag). |
@@ -77,6 +78,32 @@ jobs:
       - uses: iwamot/actions/docker-merge-and-sign@<sha> # vX.X.X
         with:
           registry_image: ghcr.io/owner/repo
+```
+
+### `go-publish`
+
+Run `goreleaser release --clean` against the caller's repository for the pushed tag. The caller's `.goreleaser.yaml` controls what gets built and how it is uploaded to the GitHub Release. This action handles checkout (with `fetch-depth: 0` so goreleaser can read the full tag history) and mise setup internally, so the caller should not run `actions/checkout` or `jdx/mise-action` before it.
+
+Expects the caller's `mise.toml` to provide `goreleaser` (and any toolchain its build needs, e.g. `go`). Pair with `release-draft` and `release-publish` to manage the surrounding draft → publish lifecycle; configure `.goreleaser.yaml` with `release.use_existing_draft: true` so goreleaser uploads artifacts to the draft created upstream by `release-draft`.
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: iwamot/actions/release-draft@<sha> # vX.X.X
+      - uses: iwamot/actions/go-publish@<sha> # vX.X.X
+      - uses: iwamot/actions/release-publish@<sha> # vX.X.X
 ```
 
 ### `mise-validate`
