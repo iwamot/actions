@@ -7,5 +7,5 @@ install_before = "1d"
 
 [task_config]
 includes = [
-  "git::https://github.com/iwamot/mise-tasks.git//.mise/tasks?ref=v2.1.0",
+  "git::https://github.com/iwamot/mise-tasks.git//.mise/tasks?ref=v2.2.0",
 ]
