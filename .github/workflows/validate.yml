@@ -12,4 +12,4 @@ jobs:
   validate:
     permissions:
       contents: read
-    uses: iwamot/workflows/.github/workflows/validate.yml@ea195638c4c96f1d94aa7628a233a739e3d068cf # v4.1.1
+    uses: iwamot/workflows/.github/workflows/validate.yml@ea0df63147a1ebcad218d279e563fc2f164fb4d0 # v4.1.2
