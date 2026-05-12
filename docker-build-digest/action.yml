@@ -45,8 +45,7 @@ runs:
         platforms: ${{ inputs.platform }}
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=image,name=${{ inputs.registry_image }},push-by-digest=true,name-canonical=true,push=true
-        cache-from: type=registry,ref=${{ inputs.registry_image }}:cache-${{ env.PLATFORM_PAIR }}
-        cache-to: type=registry,ref=${{ inputs.registry_image }}:cache-${{ env.PLATFORM_PAIR }},mode=max
+        no-cache: true
 
     - name: Export digest
       shell: bash
