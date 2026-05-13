@@ -86,6 +86,10 @@ Run `goreleaser release --clean` against the caller's repository for the pushed 
 
 Expects the caller's `mise.toml` to provide `goreleaser` (and any toolchain its build needs, e.g. `go`). Pair with `release-draft` and `release-publish` to manage the surrounding draft → publish lifecycle; configure `.goreleaser.yaml` with `release.use_existing_draft: true` so goreleaser uploads artifacts to the draft created upstream by `release-draft`.
 
+Optional inputs:
+
+- `homebrew-tap-token`: Token for pushing Homebrew formulae to a tap repository. The value is exposed to goreleaser as the `HOMEBREW_TAP_TOKEN` environment variable, which the caller's `.goreleaser.yaml` can reference from its `brews:` section. Typically generated via `actions/create-github-app-token` from a dedicated GitHub App installed on the tap repo.
+
 ```yaml
 name: Release
 
