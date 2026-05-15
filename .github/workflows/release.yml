@@ -7,10 +7,6 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   release:
     uses: iwamot/workflows/.github/workflows/release-only.yml@cdc42cf2f91fd796de35bdc27aaaa1057695afcc # v6.1.0
