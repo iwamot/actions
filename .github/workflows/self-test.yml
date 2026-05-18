@@ -79,7 +79,9 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write  # to mint OIDC token for image signing
+      id-token: write  # to mint OIDC tokens for cosign and attest
+      attestations: write  # to write the provenance attestation
+      artifact-metadata: write  # to record artifact metadata for the attestation
     needs: docker-build
     steps:
       - name: Harden Runner
