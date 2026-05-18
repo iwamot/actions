@@ -1,5 +1,5 @@
 name: 'Docker merge and sign'
-description: 'Merge per-platform digests into a manifest list, push it with semver and latest tags, then sign the image with cosign and attach an SBOM attestation.'
+description: 'Merge per-platform digests into a manifest list, push it with semver and latest tags, sign the image with cosign, attach an SBOM attestation, and upload a SLSA build provenance attestation.'
 
 inputs:
   registry_image:
@@ -81,3 +81,10 @@ runs:
         DIGEST: ${{ steps.digest.outputs.digest }}
       run: |
         cosign attest --yes --predicate sbom.spdx.json --type spdxjson "${REGISTRY_IMAGE}@${DIGEST}"
+
+    - name: Attest build provenance
+      uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+      with:
+        subject-name: ${{ inputs.registry_image }}
+        subject-digest: ${{ steps.digest.outputs.digest }}
+        push-to-registry: true
