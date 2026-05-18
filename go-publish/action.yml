@@ -20,3 +20,8 @@ runs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: goreleaser release --clean
+
+    - name: Attest build provenance
+      uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+      with:
+        subject-checksums: ./dist/checksums.txt

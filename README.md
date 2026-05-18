@@ -8,7 +8,7 @@ iwamot's shared GitHub Actions composite actions.
 |--------|---------|
 | `docker-build-digest` | Build a Docker image for a single platform by digest and upload it as an artifact. |
 | `docker-merge-and-sign` | Merge per-platform digests into a manifest list, push it with semver and latest tags, then sign the image with cosign and attach an SBOM attestation. |
-| `go-publish` | Checkout caller repo, setup mise, and run `goreleaser release` for the pushed tag. |
+| `go-publish` | Checkout caller repo, setup mise, run `goreleaser release` for the pushed tag, and attest SLSA build provenance for every artifact listed in `dist/checksums.txt`. |
 | `mise-validate` | Checkout caller repo, setup mise from `mise.toml`, and run `validate.sh`. |
 | `npm-publish` | Checkout caller repo, install with `aube`, set version from tag, build, and publish to npm with provenance. |
 | `release-draft` | Create a draft GitHub Release for the pushed tag with auto-generated notes; idempotent (recreates an existing draft for the tag). |
@@ -99,7 +99,10 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # to manage the GitHub Release lifecycle
+      id-token: write  # to mint OIDC token for attestation
+      attestations: write  # to write the provenance attestation
+      artifact-metadata: write  # to record artifact metadata for the attestation
     steps:
       - uses: iwamot/actions/release-draft@<sha> # vX.X.X
       - uses: iwamot/actions/go-publish@<sha> # vX.X.X
