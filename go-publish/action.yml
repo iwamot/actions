@@ -1,12 +1,6 @@
 name: 'go publish'
 description: 'Checkout caller repo, set up mise, and run goreleaser release for the pushed tag.'
 
-inputs:
-  homebrew-tap-token:
-    description: 'Token for pushing Homebrew formulae to a tap repository, exposed to goreleaser as HOMEBREW_TAP_TOKEN. Optional.'
-    required: false
-    default: ''
-
 runs:
   using: composite
   steps:
@@ -25,5 +19,4 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
-        HOMEBREW_TAP_TOKEN: ${{ inputs.homebrew-tap-token }}
       run: goreleaser release --clean
