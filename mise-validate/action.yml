@@ -20,4 +20,8 @@ runs:
 
     - name: Run validation script
       shell: bash
+      env:
+        # Authenticate GitHub API calls (e.g. pinact verifying SHA pins) to lift
+        # the 60 req/hour unauthenticated rate limit shared across runner IPs.
+        GITHUB_TOKEN: ${{ github.token }}
       run: bash validate.sh
