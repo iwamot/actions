@@ -129,7 +129,7 @@ jobs:
 
 Install dependencies with `aube`, set the package version from the pushed tag (`refs/tags/vX.Y.Z` → `X.Y.Z`), build, and run `npm publish --provenance --access public`. This action handles checkout internally, so the caller should not run `actions/checkout` before it.
 
-Expects the caller's `mise.toml` to provide `aube` (e.g. `npm:@endevco/aube`) and any node/bun toolchain its `aube run build` script needs. The caller must register the calling workflow as a Trusted Publisher on npm and grant `id-token: write` for OIDC provenance. A `production` environment is recommended at the caller's job level.
+Expects the caller's `mise.toml` to provide `aube` (e.g. `aqua:jdx/aube`) and any node/bun toolchain its `aube run build` script needs. The caller must register the calling workflow as a Trusted Publisher on npm and grant `id-token: write` for OIDC provenance. A `production` environment is recommended at the caller's job level.
 
 ```yaml
 name: Publish
