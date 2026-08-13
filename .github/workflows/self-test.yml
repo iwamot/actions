@@ -13,8 +13,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# A fixed name, so the package is created once rather than on every run.
+# Creating a package while both platforms push to it concurrently is denied
+# intermittently, and release-ghcr.yml never hits that path because it always
+# pushes to a package that already exists.
 env:
-  REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/actions-selftest-${{ github.run_id }}
+  PACKAGE_NAME: actions-selftest
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/actions-selftest
 
 # Note: uv-publish and npm-publish have no self-test jobs.
 # Trusted Publishing (PyPI / npm) requires a real OIDC exchange with the
@@ -39,6 +44,61 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./mise-validate
+
+  docker-sweep:
+    name: docker-sweep
+    # Every run leaves untagged manifests behind, and a run that is cancelled
+    # before docker-cleanup is scheduled leaves its tagged ones too. GHCR has no
+    # retention policy, so the next run clears whatever has aged out.
+    if: github.event.pull_request.head.repo.fork != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      packages: write  # to delete stale self-test versions
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Delete stale versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          PACKAGE: ${{ env.PACKAGE_NAME }}
+        run: |
+          base="/users/${OWNER}/packages/container/${PACKAGE}"
+          if ! gh api --silent "$base" 2>/dev/null; then
+            echo "No package yet: nothing to sweep"
+            exit 0
+          fi
+
+          versions=$(gh api --paginate "${base}/versions" --jq '.[] | [.id, .created_at] | @tsv')
+          if [ -z "$versions" ]; then
+            echo "No versions found"
+            exit 0
+          fi
+
+          # Far beyond any run's lifetime, so this never removes a version that
+          # a self-test is still pushing, whatever the job timeouts become.
+          cutoff=$(date -u -d '1 day ago' +%s)
+
+          while IFS=$'\t' read -r id created; do
+            if [ "$(date -u -d "$created" +%s)" -ge "$cutoff" ]; then
+              echo "Skipping version ${id}: too recent to be a leftover"
+              continue
+            fi
+
+            path="${base}/versions/${id}"
+            if gh api --silent -X DELETE "$path"; then
+              echo "Deleted version ${id}"
+            elif gh api --silent "$path" 2>/dev/null; then
+              echo "::error::Version ${id} still exists but could not be deleted"
+              exit 1
+            else
+              echo "Skipping version ${id}: a concurrent run deleted it first"
+            fi
+          done <<< "$versions"
 
   docker-build:
     name: docker-build
@@ -135,21 +195,45 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Delete the throwaway package
+      - name: Delete the versions this run tagged
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OWNER: ${{ github.repository_owner }}
-          PACKAGE: actions-selftest-${{ github.run_id }}
+          PACKAGE: ${{ env.PACKAGE_NAME }}
+          RUN_TAG: selftest-${{ github.run_id }}
         run: |
-          path="/users/${OWNER}/packages/container/${PACKAGE}"
-          if gh api --silent -X DELETE "$path"; then
-            echo "Deleted ${PACKAGE}"
-          elif gh api --silent "$path" 2>/dev/null; then
-            echo "::error::${PACKAGE} still exists but could not be deleted"
-            exit 1
-          else
-            echo "Nothing to delete: ${PACKAGE} was never pushed"
+          base="/users/${OWNER}/packages/container/${PACKAGE}"
+          if ! gh api --silent "$base" 2>/dev/null; then
+            echo "Nothing to delete: no package exists"
+            exit 0
           fi
+
+          # cosign stores the signature and the SBOM attestation under tags
+          # derived from the digest of the manifest list this run tagged.
+          digest=$(gh api --paginate "${base}/versions" \
+            --jq '.[] | select(.metadata.container.tags[]? == env.RUN_TAG) | .name')
+          if [ -z "$digest" ]; then
+            echo "Nothing to delete: this run tagged no manifest"
+            exit 0
+          fi
+          export SIG_PREFIX="sha256-${digest#sha256:}"
+
+          ids=$(gh api --paginate "${base}/versions" \
+            --jq '.[] | select(any(.metadata.container.tags[]?;
+              . == env.RUN_TAG or startswith(env.SIG_PREFIX))) | .id')
+
+          while read -r id; do
+            [ -n "$id" ] || continue
+            path="${base}/versions/${id}"
+            if gh api --silent -X DELETE "$path"; then
+              echo "Deleted version ${id}"
+            elif gh api --silent "$path" 2>/dev/null; then
+              echo "::error::Version ${id} still exists but could not be deleted"
+              exit 1
+            else
+              echo "Skipping version ${id}: already gone"
+            fi
+          done <<< "$ids"
 
   self-test:
     name: self-test
