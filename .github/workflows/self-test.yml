@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGISTRY_IMAGE: ttl.sh/iwamot-actions-selftest-${{ github.run_id }}
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/actions-selftest-${{ github.run_id }}
 
 # Note: uv-publish and npm-publish have no self-test jobs.
 # Trusted Publishing (PyPI / npm) requires a real OIDC exchange with the
@@ -42,10 +42,14 @@ jobs:
 
   docker-build:
     name: docker-build
+    # Fork PRs get a read-only GITHUB_TOKEN and cannot push to GHCR. To run this
+    # on a fork PR, push its head to a branch here and use workflow_dispatch.
+    if: github.event.pull_request.head.repo.fork != true
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     permissions:
       contents: read
+      packages: write  # to push the throwaway image to GHCR
     strategy:
       fail-fast: false
       matrix:
@@ -67,6 +71,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: ./docker-build-digest
         with:
           registry_image: ${{ env.REGISTRY_IMAGE }}
@@ -75,10 +86,13 @@ jobs:
 
   docker-merge-and-sign:
     name: docker-merge-and-sign
+    # See the note on docker-build.
+    if: github.event.pull_request.head.repo.fork != true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
+      packages: write  # to push the manifest list and the cosign signature
       id-token: write  # to mint OIDC tokens for cosign and attest
       attestations: write  # to write the provenance attestation
       artifact-metadata: write  # to record artifact metadata for the attestation
@@ -93,10 +107,49 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: ./docker-merge-and-sign
         with:
           registry_image: ${{ env.REGISTRY_IMAGE }}
           tags: type=raw,value=selftest-${{ github.run_id }}
+
+  docker-cleanup:
+    name: docker-cleanup
+    # always() so the package is removed even when a docker job fails or is
+    # cancelled. The fork check mirrors docker-build: nothing was pushed there.
+    if: ${{ always() && github.event.pull_request.head.repo.fork != true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      packages: write  # to delete the throwaway package
+    needs: docker-merge-and-sign
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Delete the throwaway package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          PACKAGE: actions-selftest-${{ github.run_id }}
+        run: |
+          path="/users/${OWNER}/packages/container/${PACKAGE}"
+          if gh api --silent -X DELETE "$path"; then
+            echo "Deleted ${PACKAGE}"
+          elif gh api --silent "$path" 2>/dev/null; then
+            echo "::error::${PACKAGE} still exists but could not be deleted"
+            exit 1
+          else
+            echo "Nothing to delete: ${PACKAGE} was never pushed"
+          fi
 
   self-test:
     name: self-test
