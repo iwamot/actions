@@ -10,17 +10,18 @@ runs:
         persist-credentials: false
 
     - name: Get mise version from mise.toml
+      id: mise-version
       shell: bash
       # Assign first so a failure reading min_version fails the step instead of
-      # writing an empty MISE_VERSION, which mise-action treats as "latest".
+      # writing an empty version, which mise-action treats as "latest".
       run: |
         v=$(python3 -c "import tomllib; print(tomllib.load(open('mise.toml','rb'))['min_version'])")
-        echo "MISE_VERSION=$v" >> "$GITHUB_ENV"
+        echo "version=$v" >> "$GITHUB_OUTPUT"
 
     - name: Setup mise
       uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
       with:
-        version: ${{ env.MISE_VERSION }}
+        version: ${{ steps.mise-version.outputs.version }}
 
     - name: Run validation script
       shell: bash
