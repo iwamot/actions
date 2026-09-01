@@ -17,11 +17,12 @@ runs:
   using: composite
   steps:
     - name: Prepare
+      id: prepare
       shell: bash
       env:
         PLATFORM: ${{ inputs.platform }}
       run: |
-        echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
+        echo "platform_pair=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
 
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,7 +60,7 @@ runs:
     - name: Upload digest
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
-        name: digests-${{ env.PLATFORM_PAIR }}
+        name: digests-${{ steps.prepare.outputs.platform_pair }}
         path: /tmp/digests/*
         if-no-files-found: error
         retention-days: 1
