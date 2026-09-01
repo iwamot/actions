@@ -11,7 +11,11 @@ runs:
 
     - name: Get mise version from mise.toml
       shell: bash
-      run: echo "MISE_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('mise.toml','rb'))['min_version'])")" >> "$GITHUB_ENV"
+      # Assign first so a failure reading min_version fails the step instead of
+      # writing an empty MISE_VERSION, which mise-action treats as "latest".
+      run: |
+        v=$(python3 -c "import tomllib; print(tomllib.load(open('mise.toml','rb'))['min_version'])")
+        echo "MISE_VERSION=$v" >> "$GITHUB_ENV"
 
     - name: Setup mise
       uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
