@@ -83,7 +83,17 @@ jobs:
           # a self-test is still pushing, whatever the job timeouts become.
           cutoff=$(date -u -d '1 day ago' +%s)
 
+          # GHCR refuses to delete the only version left in a package, and after
+          # a day without runs every version is stale before this run pushes its
+          # own. The API lists the newest first, so that one is always kept.
+          newest=true
           while IFS=$'\t' read -r id created; do
+            if [ "$newest" = true ]; then
+              newest=false
+              echo "Keeping version ${id}: the newest version is never deleted"
+              continue
+            fi
+
             if [ "$(date -u -d "$created" +%s)" -ge "$cutoff" ]; then
               echo "Skipping version ${id}: too recent to be a leftover"
               continue
