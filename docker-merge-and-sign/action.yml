@@ -67,7 +67,7 @@ runs:
         "${GITHUB_ACTION_PATH}/cosign-retry.sh" sign --yes "${REGISTRY_IMAGE}@${DIGEST}"
 
     - name: Generate SBOM
-      uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+      uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
       with:
         image: ${{ inputs.registry_image }}@${{ steps.digest.outputs.digest }}
         format: spdx-json
