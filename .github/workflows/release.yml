@@ -12,6 +12,6 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.job }}-${{ github.ref }}
       cancel-in-progress: false
-    uses: iwamot/workflows/.github/workflows/release-only.yml@d4650268026c4277d5dc6aee7ef90d4dd57935e4 # v8.13.0
+    uses: iwamot/workflows/.github/workflows/release-only.yml@e5473d794269314bf1ef838dacfcc505c2cb239f # v8.14.0
     permissions:
       contents: write  # to create the GitHub Release
