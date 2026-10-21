@@ -13,6 +13,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 # A fixed name, so the package is created once rather than on every run.
 # Creating a package while both platforms push to it concurrently is denied
 # intermittently, and release-ghcr.yml never hits that path because it always
@@ -25,11 +29,11 @@ env:
 # Trusted Publishing (PyPI / npm) requires a real OIDC exchange with the
 # registry, and no public mock implements those endpoints. Local registries
 # only speak basic/token auth, which would bypass the actions' main code
-# paths. Static checks (zizmor, actionlint) cover syntax.
+# paths. Static checks (zizmor, jactionlint) cover syntax.
 jobs:
   mise-validate:
     name: mise-validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -50,8 +54,8 @@ jobs:
     # Every run leaves untagged manifests behind, and a run that is cancelled
     # before docker-cleanup is scheduled leaves its tagged ones too. GHCR has no
     # retention policy, so the next run clears whatever has aged out.
-    if: github.event.pull_request.head.repo.fork != true
-    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.head.repo.fork != true }}
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       packages: write  # to delete stale self-test versions
@@ -114,7 +118,7 @@ jobs:
     name: docker-build
     # Fork PRs get a read-only GITHUB_TOKEN and cannot push to GHCR. To run this
     # on a fork PR, push its head to a branch here and use workflow_dispatch.
-    if: github.event.pull_request.head.repo.fork != true
+    if: ${{ github.event.pull_request.head.repo.fork != true }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     permissions:
@@ -157,8 +161,8 @@ jobs:
   docker-merge-and-sign:
     name: docker-merge-and-sign
     # See the note on docker-build.
-    if: github.event.pull_request.head.repo.fork != true
-    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.head.repo.fork != true }}
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -194,7 +198,7 @@ jobs:
     # always() so the package is removed even when a docker job fails or is
     # cancelled. The fork check mirrors docker-build: nothing was pushed there.
     if: ${{ always() && github.event.pull_request.head.repo.fork != true }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       packages: write  # to delete the throwaway package
@@ -249,9 +253,8 @@ jobs:
     name: self-test
     needs:
       - mise-validate
-      - docker-build
       - docker-merge-and-sign
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1
     permissions: {}
     steps:
