@@ -11,6 +11,7 @@ iwamot's shared GitHub Actions composite actions.
 | `go-publish` | Checkout caller repo, setup mise, run `goreleaser release` for the pushed tag, and attest SLSA build provenance for every artifact listed in `dist/checksums.txt`. |
 | `mise-validate` | Checkout caller repo, setup mise from `mise.toml`, and run `validate.sh`. |
 | `npm-publish` | Checkout caller repo, install with `aube`, set version from tag, build, and publish to npm with provenance. |
+| `release-tag` | Resolve a tag push or create a stable version tag at the default-branch commit for a manual release. |
 | `release-draft` | Create a draft GitHub Release for the pushed tag with auto-generated notes; idempotent (recreates an existing draft for the tag). |
 | `release-publish` | Publish (un-draft) the GitHub Release for the pushed tag. |
 | `uv-publish` | Checkout caller repo, build with `uv`, generate PEP 740 publish attestations, and publish to PyPI via Trusted Publishing. |
@@ -151,6 +152,22 @@ jobs:
       id-token: write
     steps:
       - uses: iwamot/actions/npm-publish@<sha> # vX.X.X
+```
+
+### `release-tag`
+
+For a manual release, pass the caller's `workflow_dispatch` tag input to this action before drafting or publishing. It creates a lightweight `vMAJOR.MINOR.PATCH` tag at the run's default-branch commit. A retry reuses a tag only if it points to that same commit; tags are never moved. Tag-push runs resolve the pushed tag instead. The job needs `contents: write`.
+
+Pass `steps.release-tag.outputs.tag` as `tag` to `release-draft`, `release-publish`, and the channel's `npm-publish`, `uv-publish`, or `go-publish` action. Those actions still default to `github.ref_name` for existing tag-push callers. Explicit tags select the checkout and, for npm/Go, the published version; the run's GitHub event and OIDC identity remain unchanged.
+
+```yaml
+- uses: iwamot/actions/release-tag@<sha> # vX.X.X
+  id: release-tag
+  with:
+    tag: ${{ inputs.tag || '' }}
+- uses: iwamot/actions/release-draft@<sha> # vX.X.X
+  with:
+    tag: ${{ steps.release-tag.outputs.tag }}
 ```
 
 ### `release-draft`

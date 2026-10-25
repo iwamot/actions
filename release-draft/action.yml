@@ -1,6 +1,12 @@
 name: 'release draft'
 description: 'Create a draft GitHub Release for the pushed tag with auto-generated notes. Recreates the draft if one already exists for the tag.'
 
+inputs:
+  tag:
+    description: 'Release tag to publish'
+    required: false
+    default: ${{ github.ref_name }}
+
 runs:
   using: composite
   steps:
@@ -9,7 +15,7 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
         GH_REPO: ${{ github.repository }}
-        TAG: ${{ github.ref_name }}
+        TAG: ${{ inputs.tag }}
       run: |
         if STATE=$(gh release view "${TAG}" --json isDraft --jq .isDraft 2>/dev/null); then
           if [ "${STATE}" = "true" ]; then
