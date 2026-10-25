@@ -22,4 +22,6 @@ jobs:
     with:
       tag: ${{ inputs.tag || '' }}
     permissions:
+      checks: read  # allow the shared release workflow to inspect required CI
+      statuses: read  # allow inspection of required legacy commit statuses
       contents: write  # to create the GitHub Release
