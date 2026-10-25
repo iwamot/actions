@@ -2,6 +2,10 @@ name: 'Docker merge and sign'
 description: 'Merge per-platform digests into a manifest list, push it with semver and latest tags, sign the image with cosign, attach an SBOM attestation, and upload a SLSA build provenance attestation.'
 
 inputs:
+  tag:
+    description: 'Explicit release tag for manual runs; empty preserves event-based metadata'
+    required: false
+    default: ''
   registry_image:
     description: 'Full image URI (e.g. public.ecr.aws/xxxxxxxx/namespace/repo or ghcr.io/owner/repo)'
     required: true
@@ -29,7 +33,9 @@ runs:
       uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
       with:
         images: ${{ inputs.registry_image }}
-        tags: ${{ inputs.tags }}
+        tags: |
+          ${{ inputs.tags }}
+          type=semver,pattern={{version}},value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
 
     - name: Create manifest list and push
       shell: bash

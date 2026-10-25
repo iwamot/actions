@@ -25,6 +25,7 @@ runs:
         SOURCE_SHA: ${{ github.sha }}
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         INPUT_TAG: ${{ inputs.tag }}
+        ACTION_PATH: ${{ github.action_path }}
       shell: bash
       run: |
         if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
@@ -43,6 +44,7 @@ runs:
               exit 1
             fi
           else
+            RELEASE_TAG="${TAG}" python3 "${ACTION_PATH}/wait.py"
             gh api --method POST "repos/${GH_REPO}/git/refs" \
               -f "ref=refs/tags/${TAG}" -f "sha=${SOURCE_SHA}"
           fi
