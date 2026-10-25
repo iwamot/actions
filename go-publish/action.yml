@@ -1,6 +1,12 @@
 name: 'go publish'
 description: 'Checkout caller repo, set up mise, and run goreleaser release for the pushed tag.'
 
+inputs:
+  tag:
+    description: 'Release tag to publish'
+    required: false
+    default: ${{ github.ref_name }}
+
 runs:
   using: composite
   steps:
@@ -8,6 +14,7 @@ runs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 0
+        ref: ${{ inputs.tag }}
         persist-credentials: false
 
     - name: Get mise version from mise.toml
@@ -29,6 +36,7 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
+        GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
       run: goreleaser release --clean
 
     - name: Attest build provenance

@@ -1,12 +1,19 @@
 name: 'npm publish'
 description: 'Checkout caller repo, install with aube, set version from tag, build, and publish to npm with provenance'
 
+inputs:
+  tag:
+    description: 'Release tag to publish'
+    required: false
+    default: ${{ github.ref_name }}
+
 runs:
   using: composite
   steps:
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
+        ref: ${{ inputs.tag }}
         persist-credentials: false
 
     - name: Get mise version from mise.toml
@@ -29,9 +36,11 @@ runs:
       run: aube install --frozen-lockfile
 
     - name: Set version from tag
+      env:
+        TAG: ${{ inputs.tag }}
       shell: bash
       run: |
-        VERSION="${GITHUB_REF_NAME#v}"
+        VERSION="${TAG#v}"
         npm pkg set version="$VERSION"
 
     - name: Build

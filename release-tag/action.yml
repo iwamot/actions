@@ -1,0 +1,55 @@
+name: 'release tag'
+description: 'Resolve a pushed release tag or create one at the default-branch commit for a manual release'
+
+inputs:
+  tag:
+    description: 'Stable version tag to create for a manual release'
+    required: false
+    default: ''
+
+outputs:
+  tag:
+    description: 'Release tag to pass to checkout and publishing actions'
+    value: ${{ steps.release-tag.outputs.tag }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve release tag
+      id: release-tag
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        EVENT_NAME: ${{ github.event_name }}
+        SOURCE_REF: ${{ github.ref }}
+        SOURCE_SHA: ${{ github.sha }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        INPUT_TAG: ${{ inputs.tag }}
+      shell: bash
+      run: |
+        if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+          if [[ "${SOURCE_REF}" != "refs/heads/${DEFAULT_BRANCH}" ]]; then
+            echo "Run manual releases from ${DEFAULT_BRANCH}." >&2
+            exit 1
+          fi
+          TAG="${INPUT_TAG}"
+          if [[ ! "${TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Enter a release tag such as v1.2.3." >&2
+            exit 1
+          fi
+          if TAG_SHA=$(gh api "repos/${GH_REPO}/commits/refs%2Ftags%2F${TAG}" --jq .sha 2>/dev/null); then
+            if [[ "${TAG_SHA}" != "${SOURCE_SHA}" ]]; then
+              echo "Tag ${TAG} points to another commit; refusing to move it." >&2
+              exit 1
+            fi
+          else
+            gh api --method POST "repos/${GH_REPO}/git/refs" \
+              -f "ref=refs/tags/${TAG}" -f "sha=${SOURCE_SHA}"
+          fi
+        elif [[ "${EVENT_NAME}" == "push" && "${SOURCE_REF}" == refs/tags/* ]]; then
+          TAG="${SOURCE_REF#refs/tags/}"
+        else
+          echo "Release requires a tag push or a manual run from ${DEFAULT_BRANCH}." >&2
+          exit 1
+        fi
+        echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
