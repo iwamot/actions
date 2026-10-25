@@ -13,7 +13,7 @@ iwamot's shared GitHub Actions composite actions.
 | `npm-publish` | Checkout caller repo, install with `aube`, set version from tag, build, and publish to npm with provenance. |
 | `release-draft` | Create a draft GitHub Release for the pushed tag with auto-generated notes; idempotent (recreates an existing draft for the tag). |
 | `release-publish` | Publish (un-draft) the GitHub Release for the pushed tag. |
-| `uv-publish` | Checkout caller repo, build with `uv`, and publish to PyPI via Trusted Publishing. |
+| `uv-publish` | Checkout caller repo, build with `uv`, generate PEP 740 publish attestations, and publish to PyPI via Trusted Publishing. |
 
 ## Usage
 
@@ -185,9 +185,11 @@ Flip the draft GitHub Release for the pushed tag (`${{ github.ref_name }}`) to p
 
 ### `uv-publish`
 
-Build the caller's package with `uv` and publish to PyPI via Trusted Publishing. This action handles checkout internally, so the caller should not run `actions/checkout` before it.
+Build the caller's package with `uv`, generate PEP 740 publish attestations for the source distribution and wheel with `astral-sh/attest-action`, and upload both packages and attestations to PyPI via `uv publish` and Trusted Publishing. This action handles checkout internally, so the caller should not run `actions/checkout` before it.
 
 The caller must register the calling workflow as a Trusted Publisher on PyPI and grant `id-token: write` for OIDC. A `production` environment is recommended at the caller's job level.
+
+Callers that restrict outbound traffic must also allow HTTPS to `fulcio.sigstore.dev`, `rekor.sigstore.dev`, `timestamp.sigstore.dev`, and `tuf-repo-cdn.sigstore.dev` for Sigstore signing. Add these endpoints before upgrading from an action version that only publishes packages. Attestation generation must succeed before publishing proceeds.
 
 ```yaml
 name: Publish

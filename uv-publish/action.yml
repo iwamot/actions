@@ -1,5 +1,5 @@
 name: 'uv publish'
-description: 'Checkout caller repo, build with uv, and publish to PyPI via Trusted Publishing'
+description: 'Checkout caller repo, build with uv, attest, and publish to PyPI via Trusted Publishing'
 
 runs:
   using: composite
@@ -17,6 +17,13 @@ runs:
     - name: Build
       shell: bash
       run: uv build
+
+    - name: Generate publish attestations
+      uses: astral-sh/attest-action@39b6ce43875c196a579e31635b11aa2a2036384a # v0.0.7
+      with:
+        paths: |
+          dist/*.tar.gz
+          dist/*.whl
 
     - name: Publish
       shell: bash
