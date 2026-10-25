@@ -154,6 +154,8 @@ jobs:
 
       - uses: $/docker-build-digest
         with:
+          # Exercise the explicit-ref path without creating a release tag.
+          tag: ${{ github.sha }}
           registry_image: ${{ env.REGISTRY_IMAGE }}
           platform: ${{ matrix.platform }}
           file: Dockerfile.selftest
