@@ -156,9 +156,11 @@ jobs:
 
 ### `release-tag`
 
-For a manual release, pass the caller's `workflow_dispatch` tag input to this action before drafting or publishing. It creates a lightweight `vMAJOR.MINOR.PATCH` tag at the run's default-branch commit. A retry reuses a tag only if it points to that same commit; tags are never moved. Tag-push runs resolve the pushed tag instead. The job needs `contents: write`.
+For a manual release, pass the caller's `workflow_dispatch` tag input to this action before drafting or publishing. It creates a lightweight `vMAJOR.MINOR.PATCH` tag at the run's default-branch commit. A retry reuses a tag only if it points to that same commit; tags are never moved. Tag-push runs resolve the pushed tag instead. Before creating a tag it waits up to ten minutes for the checks required by active tag rulesets, reports pending checks and their links, and stops on a failed check. The job needs `contents: write`, `checks: read`, and `statuses: read`. Its timeout must allow the ten-minute wait plus publishing.
 
-Pass `steps.release-tag.outputs.tag` as `tag` to `release-draft`, `release-publish`, and the channel's `npm-publish`, `uv-publish`, or `go-publish` action. Those actions still default to `github.ref_name` for existing tag-push callers. Explicit tags select the checkout and, for npm/Go, the published version; the run's GitHub event and OIDC identity remain unchanged.
+Pass `steps.release-tag.outputs.tag` as `tag` to `release-draft`, `release-publish`, and the channel's `npm-publish`, `uv-publish`, or `go-publish` action. The Docker actions also accept `tag`: `docker-build-digest` checks out that tag and both Docker actions include it explicitly in semver metadata, so a manual run keeps versioned image tags and labels. Omit it to retain event-based metadata and custom self-test tags.
+
+The package publishing actions still default to `github.ref_name` for existing tag-push callers. Explicit tags select the checkout and, for npm/Go, the published version; the run's GitHub event and OIDC identity remain unchanged.
 
 ```yaml
 - uses: iwamot/actions/release-tag@<sha> # vX.X.X

@@ -2,6 +2,10 @@ name: 'Docker build digest'
 description: 'Build a Docker image for a single platform by digest and upload it as an artifact for later manifest merging.'
 
 inputs:
+  tag:
+    description: 'Explicit release tag for manual runs; empty preserves event-based metadata'
+    required: false
+    default: ''
   registry_image:
     description: 'Full image URI (e.g. public.ecr.aws/xxxxxxxx/namespace/repo or ghcr.io/owner/repo)'
     required: true
@@ -27,6 +31,7 @@ runs:
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
+        ref: ${{ inputs.tag || github.ref }}
         persist-credentials: false
 
     - name: Docker meta
@@ -34,6 +39,12 @@ runs:
       uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
       with:
         images: ${{ inputs.registry_image }}
+        tags: |
+          type=schedule
+          type=ref,event=branch
+          type=ref,event=tag
+          type=ref,event=pr
+          type=semver,pattern={{version}},value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
