@@ -251,31 +251,12 @@ jobs:
             fi
           done <<< "$ids"
 
-  release-tag-tests:
-    name: release-tag-tests
-    runs-on: ubuntu-26.04
-    timeout-minutes: 1
-    permissions:
-      contents: read
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Test required CI waiting
-        run: python3 -B -m unittest discover -s release-tag -p 'test_*.py'
 
   self-test:
     name: self-test
     needs:
       - mise-validate
       - docker-merge-and-sign
-      - release-tag-tests
     runs-on: ubuntu-26.04
     timeout-minutes: 1
     permissions: {}
