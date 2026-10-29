@@ -3,6 +3,13 @@
 # Docs: https://gh.io/actions-lockfile
 version: 'v0.0.3'
 workflows:
+    '.github/workflows/auto-label.yml': []
+    '.github/workflows/dco.yml': []
+    '.github/workflows/dependabot-auto-merge.yml': []
+    '.github/workflows/dependency-review.yml': []
+    '.github/workflows/oide.yml': []
+    '.github/workflows/release.yml': []
+    '.github/workflows/renovate.yml': []
     '.github/workflows/self-test.yml':
         - 'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6'
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
@@ -16,6 +23,7 @@ workflows:
         - 'jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d'
         - 'sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6'
         - 'step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43'
+    '.github/workflows/validate.yml': []
 dependencies:
     'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6':
         ref: 'v4.2.2'
