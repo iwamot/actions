@@ -238,11 +238,6 @@ jobs:
 ./validate.sh
 ```
 
-The self-test workflow locks its direct action dependencies and the dependencies of same-repository `$/` actions in `.github/workflows/actions.lock`. Renovate's native GitHub Actions manager regenerates the lockfile when updating action references in the workflow or local action manifests. `validate.sh` verifies the lockfile against GitHub.
+The self-test workflow locks its direct action dependencies and the dependencies of same-repository `$/` actions in `.github/workflows/actions.lock`. Renovate's native GitHub Actions manager regenerates the lockfile when updating action references in the workflow or local action manifests. The shared `gha-lint` task, called by `validate.sh`, verifies the lockfile against GitHub.
 
-After changing action references in the self-test workflow or its local actions, regenerate and verify the lockfile:
-
-```bash
-mise exec -- gh-actions-lock --no-interactive --no-narrow .github/workflows/self-test.yml
-mise exec -- gh-actions-lock --verify .github/workflows/self-test.yml
-```
+After manual changes to action references or workflows, regenerate the lockfile with [gh-actions-lock](https://github.com/github/gh-actions-lock) and run `mise run gha-lint` to verify it.
