@@ -31,12 +31,23 @@ Optional inputs:
 - `file`: Path to the Dockerfile (default: `Dockerfile`).
 
 ```yaml
+name: Publish container
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions: {}
+
+env:
+  REGISTRY_IMAGE: ghcr.io/owner/repo
+
 jobs:
   build:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
-      # Registry login usually requires id-token: write (OIDC) or packages: write (GHCR).
+      packages: write  # to push image digests to GHCR
     strategy:
       matrix:
         platform:
@@ -48,11 +59,32 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
     steps:
-      # ... registry login ...
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
       - uses: iwamot/actions/docker-build-digest@<sha> # vX.X.X
         with:
-          registry_image: ghcr.io/owner/repo
+          registry_image: ${{ env.REGISTRY_IMAGE }}
           platform: ${{ matrix.platform }}
+
+  merge-and-sign:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # to push the manifest and signatures to GHCR
+      id-token: write  # to mint OIDC tokens for cosign and attest
+      attestations: write  # to write the provenance attestation
+      artifact-metadata: write  # to record artifact metadata for the attestation
+    steps:
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - uses: iwamot/actions/docker-merge-and-sign@<sha> # vX.X.X
+        with:
+          registry_image: ${{ env.REGISTRY_IMAGE }}
 ```
 
 ### `docker-merge-and-sign`
@@ -65,23 +97,7 @@ Optional inputs:
 
 - `tags`: Tags input forwarded to `docker/metadata-action` (default: `type=semver,pattern={{version}}`). Override when the action needs to run outside of a semver tag push (e.g., from a self-test workflow).
 
-```yaml
-jobs:
-  merge-and-sign:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # to mint OIDC tokens for cosign and attest
-      attestations: write  # to write the provenance attestation
-      artifact-metadata: write  # to record artifact metadata for the attestation
-      # Additional permissions depend on the registry (e.g. packages: write for GHCR).
-    needs:
-      - build
-    steps:
-      # ... registry login ...
-      - uses: iwamot/actions/docker-merge-and-sign@<sha> # vX.X.X
-        with:
-          registry_image: ghcr.io/owner/repo
-```
+See the complete GHCR workflow in the [`docker-build-digest` example](#docker-build-digest), which builds both platforms before merging and signing.
 
 ### `go-publish`
 
@@ -117,6 +133,16 @@ jobs:
 Expects a `mise.toml` with `min_version` at the caller's repository root and a `validate.sh` script. This action handles checkout internally, so the caller should not run `actions/checkout` before it.
 
 ```yaml
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -163,13 +189,39 @@ Pass `steps.release-tag.outputs.tag` as `tag` to `release-draft`, `release-publi
 The package publishing actions still default to `github.ref_name` for existing tag-push callers. Explicit tags select the checkout and, for npm/Go, the published version; the run's GitHub event and OIDC identity remain unchanged.
 
 ```yaml
-- uses: iwamot/actions/release-tag@<sha> # vX.X.X
-  id: release-tag
-  with:
-    tag: ${{ inputs.tag || '' }}
-- uses: iwamot/actions/release-draft@<sha> # vX.X.X
-  with:
-    tag: ${{ steps.release-tag.outputs.tag }}
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.2.3)'
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write  # to create the tag and manage the GitHub Release
+      checks: read
+      statuses: read
+    steps:
+      - uses: iwamot/actions/release-tag@<sha> # vX.X.X
+        id: release-tag
+        with:
+          tag: ${{ inputs.tag || '' }}
+      - uses: iwamot/actions/release-draft@<sha> # vX.X.X
+        with:
+          tag: ${{ steps.release-tag.outputs.tag }}
+      - uses: iwamot/actions/release-publish@<sha> # vX.X.X
+        with:
+          tag: ${{ steps.release-tag.outputs.tag }}
 ```
 
 ### `release-draft`
