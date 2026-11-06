@@ -17,7 +17,7 @@ workflows:
         - 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9'
         - 'anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c'
         - 'docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc'
-        - 'docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6'
+        - 'docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550'
         - 'docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302'
         - 'docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069'
         - 'jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c'
@@ -55,9 +55,9 @@ dependencies:
         commit: 'sha1-c3c9e263c25d99ce0380d002d59b67737d91b0dc'
         owner_id: 5429470
         repo_id: 241092383
-    'docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6':
-        ref: 'v4.7.0'
-        commit: 'sha1-81c6f93d4bc991e510b342a00b419b3bb4efc5c6'
+    'docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550':
+        ref: 'v4.8.0'
+        commit: 'sha1-8aa5831fb8d48d8f76594c7ddde61ae58019f550'
         owner_id: 5429470
         repo_id: 287743349
     'docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302':
