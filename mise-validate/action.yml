@@ -22,6 +22,9 @@ runs:
       uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       with:
         version: ${{ steps.mise-version.outputs.version }}
+        # Include tools installed by validate.sh after mise setup.
+        cache_save_post: true
+        cache_key_prefix: mise-validate-v2
 
     - name: Run validation script
       shell: bash

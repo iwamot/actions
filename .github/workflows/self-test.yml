@@ -254,6 +254,7 @@ jobs:
 
   self-test:
     name: self-test
+    if: ${{ always() }}
     needs:
       - mise-validate
       - docker-merge-and-sign
@@ -266,4 +267,22 @@ jobs:
         with:
           egress-policy: audit
 
-      - run: 'true'
+      - name: Check self-test results
+        env:
+          MISE_VALIDATE_RESULT: ${{ needs.mise-validate.result }}
+          DOCKER_TEST_RESULT: ${{ needs.docker-merge-and-sign.result }}
+          FORK_PR: ${{ github.event.pull_request.head.repo.fork == true }}
+        run: |
+          if [[ "$MISE_VALIDATE_RESULT" != success ]]; then
+            echo "::error::mise-validate ended with $MISE_VALIDATE_RESULT"
+            exit 1
+          fi
+          if [[ "$DOCKER_TEST_RESULT" == success ]]; then
+            exit 0
+          fi
+          # Fork PRs cannot push the images used by the Docker self-test.
+          if [[ "$FORK_PR" == true && "$DOCKER_TEST_RESULT" == skipped ]]; then
+            exit 0
+          fi
+          echo "::error::docker-merge-and-sign ended with $DOCKER_TEST_RESULT"
+          exit 1
