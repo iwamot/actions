@@ -1,0 +1,89 @@
+name: 'homebrew tap pr'
+description: 'Open an auto-merging pull request on iwamot/homebrew-tap that updates the cask GoReleaser wrote under dist/.'
+
+inputs:
+  tag:
+    description: 'Release tag the cask points to'
+    required: false
+    default: ${{ github.ref_name }}
+  cask_name:
+    description: 'Cask file name without .rb, searched for under dist/ and written to Casks/<cask_name>.rb in the tap'
+    required: false
+    default: ${{ github.event.repository.name }}
+  app_client_id:
+    description: 'Client ID of the GitHub App installed on iwamot/homebrew-tap'
+    required: true
+  app_private_key:
+    description: 'Private key of that GitHub App'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      id: tap-token
+      with:
+        client-id: ${{ inputs.app_client_id }}
+        private-key: ${{ inputs.app_private_key }}
+        owner: iwamot
+        repositories: homebrew-tap
+        permission-contents: write  # createCommitOnBranch on the cask update branch
+        permission-pull-requests: write  # open and auto-merge the cask PR
+
+    - name: Submit cask PR to homebrew-tap
+      env:
+        GH_TOKEN: ${{ steps.tap-token.outputs.token }}
+        CASK_NAME: ${{ inputs.cask_name }}
+        TAG: ${{ inputs.tag }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        CASK_FILE=$(find dist -name "${CASK_NAME}.rb" -type f | head -n1)
+        if [ -z "${CASK_FILE}" ]; then
+          echo "Cask file ${CASK_NAME}.rb not found under dist/" >&2
+          exit 1
+        fi
+        CONTENTS_B64=$(base64 -w0 < "${CASK_FILE}")
+        BRANCH="cask-update-${CASK_NAME}-${TAG}"
+        BOT_NAME="iwamot-homebrew-tap[bot]"
+        BOT_EMAIL="284326920+iwamot-homebrew-tap[bot]@users.noreply.github.com"
+        TITLE="feat: brew cask update for ${CASK_NAME} version ${TAG}"
+
+        gh api -X DELETE "/repos/iwamot/homebrew-tap/git/refs/heads/${BRANCH}" 2>/dev/null || true
+
+        MAIN_SHA=$(gh api /repos/iwamot/homebrew-tap/git/refs/heads/main --jq '.object.sha')
+
+        gh api -X POST /repos/iwamot/homebrew-tap/git/refs \
+          -f ref="refs/heads/${BRANCH}" \
+          -f sha="${MAIN_SHA}" >/dev/null
+
+        QUERY=$(cat <<'GRAPHQL'
+        mutation($repo: String!, $branch: String!, $headline: String!, $body: String!, $path: String!, $contents: Base64String!, $oid: GitObjectID!) {
+          createCommitOnBranch(input: {
+            branch: { repositoryNameWithOwner: $repo, branchName: $branch }
+            message: { headline: $headline, body: $body }
+            fileChanges: { additions: [{ path: $path, contents: $contents }] }
+            expectedHeadOid: $oid
+          }) { commit { oid } }
+        }
+        GRAPHQL
+        )
+
+        gh api graphql -f query="${QUERY}" \
+          -f repo="iwamot/homebrew-tap" \
+          -f branch="${BRANCH}" \
+          -f headline="${TITLE}" \
+          -f body="Signed-off-by: ${BOT_NAME} <${BOT_EMAIL}>" \
+          -f path="Casks/${CASK_NAME}.rb" \
+          -f contents="${CONTENTS_B64}" \
+          -f oid="${MAIN_SHA}" >/dev/null
+
+        gh pr create -R iwamot/homebrew-tap \
+          --head "${BRANCH}" \
+          --base main \
+          --title "${TITLE}" \
+          --body "Automated cask update from ${CASK_NAME} ${TAG} release."
+
+        gh pr merge -R iwamot/homebrew-tap "${BRANCH}" \
+          --squash --auto --delete-branch

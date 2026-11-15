@@ -9,6 +9,7 @@ iwamot's shared GitHub Actions composite actions.
 | `docker-build-digest` | Build a Docker image for a single platform by digest and upload it as an artifact. |
 | `docker-merge-and-sign` | Merge per-platform digests into a manifest list, push it with semver and latest tags, sign the image with cosign, attach an SBOM attestation, and upload a SLSA build provenance attestation. |
 | `go-publish` | Checkout caller repo, setup mise, run `goreleaser release` for the pushed tag, and attest SLSA build provenance for every artifact listed in `dist/checksums.txt`. |
+| `homebrew-tap-pr` | Open an auto-merging pull request on `iwamot/homebrew-tap` that updates the cask GoReleaser wrote under `dist/`. |
 | `mise-validate` | Checkout caller repo, setup mise from `mise.toml`, and run `validate.sh`. |
 | `npm-publish` | Checkout caller repo, install with `aube`, set version from tag, build, and publish to npm with provenance. |
 | `release-tag` | Resolve a tag push or create a stable version tag at the default-branch commit for a manual release. |
@@ -126,6 +127,37 @@ jobs:
     steps:
       - uses: iwamot/actions/release-draft@<sha> # vX.X.X
       - uses: iwamot/actions/go-publish@<sha> # vX.X.X
+      - uses: iwamot/actions/release-publish@<sha> # vX.X.X
+```
+
+### `homebrew-tap-pr`
+
+Run after `go-publish` in the same job, so the cask GoReleaser wrote under `dist/` is still on the runner. The action mints a token for a GitHub App installed on `iwamot/homebrew-tap`, commits `Casks/<cask_name>.rb` to a fresh branch, opens a pull request, and enables auto-merge. `cask_name` defaults to the caller repository name. If the runner restricts egress, allow `api.github.com:443`.
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # to manage the GitHub Release lifecycle
+      id-token: write  # to mint OIDC token for attestation
+      attestations: write  # to write the provenance attestation
+      artifact-metadata: write  # to record artifact metadata for the attestation
+    steps:
+      - uses: iwamot/actions/release-draft@<sha> # vX.X.X
+      - uses: iwamot/actions/go-publish@<sha> # vX.X.X
+      - uses: iwamot/actions/homebrew-tap-pr@<sha> # vX.X.X
+        with:
+          app_client_id: ${{ secrets.HOMEBREW_TAP_APP_CLIENT_ID }}
+          app_private_key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
       - uses: iwamot/actions/release-publish@<sha> # vX.X.X
 ```
 
