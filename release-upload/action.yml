@@ -1,0 +1,38 @@
+name: 'release upload'
+description: 'Attach local files to a GitHub Release, replacing assets with the same names.'
+
+inputs:
+  tag:
+    description: 'Release tag to upload assets to'
+    required: false
+    default: ${{ github.ref_name }}
+  files:
+    description: 'Local file paths or glob patterns to attach, one per line'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Upload release assets
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        TAG: ${{ inputs.tag }}
+        ASSET_PATHS: ${{ inputs.files }}
+      run: |
+        mapfile -t paths < <(printf '%s' "${ASSET_PATHS}")
+        files=()
+        for path in "${paths[@]}"; do
+          if [[ -f "${path}" ]]; then
+            files+=("${path}")
+          else
+            if ! matches=$(compgen -G "${path}"); then
+              printf 'No release assets match %s\n' "${path}" >&2
+              exit 1
+            fi
+            mapfile -t matched_files <<< "${matches}"
+            files+=("${matched_files[@]}")
+          fi
+        done
+        gh release upload --clobber -- "${TAG}" "${files[@]}"

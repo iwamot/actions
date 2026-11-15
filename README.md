@@ -13,6 +13,7 @@ iwamot's shared GitHub Actions composite actions.
 | `npm-publish` | Checkout caller repo, install with `aube`, set version from tag, build, and publish to npm with provenance. |
 | `release-tag` | Resolve a tag push or create a stable version tag at the default-branch commit for a manual release. |
 | `release-draft` | Create a draft GitHub Release for the pushed tag with auto-generated notes; idempotent (recreates an existing draft for the tag). |
+| `release-upload` | Attach local files to a GitHub Release, replacing assets with the same names. |
 | `release-publish` | Publish (un-draft) the GitHub Release for the pushed tag. |
 | `uv-publish` | Checkout caller repo, build with `uv`, generate PEP 740 publish attestations, and publish to PyPI via Trusted Publishing. |
 
@@ -247,6 +248,42 @@ jobs:
     steps:
       - uses: iwamot/actions/release-draft@<sha> # vX.X.X
       # ... channel-specific publish step ...
+      - uses: iwamot/actions/release-publish@<sha> # vX.X.X
+```
+
+### `release-upload`
+
+Run after `release-draft` and before `release-publish`. Pass local file paths or glob patterns in `files`, one per line. If a line names an existing file, that file is used as written. Every other line must match at least one file before the upload starts. Pass the resolved `tag` when using `release-tag`. Same-name assets are replaced so a job can retry after a partial upload. The caller needs `contents: write`. If the runner restricts egress, allow `api.github.com:443` and `uploads.github.com:443` for the upload.
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # to draft the release, attach files, and publish
+    steps:
+      - uses: actions/checkout@<sha> # vX.X.X
+        with:
+          persist-credentials: false
+      - run: git archive --format=zip --output=project.zip HEAD
+      - uses: iwamot/actions/release-draft@<sha> # vX.X.X
+      - uses: iwamot/actions/release-upload@<sha> # vX.X.X
+        with:
+          files: |
+            project.zip
+            LICENSE
       - uses: iwamot/actions/release-publish@<sha> # vX.X.X
 ```
 
