@@ -285,7 +285,7 @@ jobs:
 
 ### `release-upload`
 
-Run after `release-draft` and before `release-publish`. Pass local file paths or glob patterns in `files`, one per line. If a line names an existing file, that file is used as written. Every other line must match at least one file before the upload starts. Pass the resolved `tag` when using `release-tag`. Same-name assets are replaced so a job can retry after a partial upload. The caller needs `contents: write`. If the runner restricts egress, allow `api.github.com:443` and `uploads.github.com:443` for the upload.
+Run after `release-draft` and before `release-publish`. Pass local file paths or glob patterns in `files`, one per line; blank lines are skipped. If a line names an existing file, that file is used as written. Every other line must match at least one file before the upload starts. Pass the resolved `tag` when using `release-tag`. Same-name assets are replaced so a job can retry after a partial upload. The caller needs `contents: write`. If the runner restricts egress, allow `api.github.com:443` and `uploads.github.com:443` for the upload.
 
 ```yaml
 name: Release
