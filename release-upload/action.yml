@@ -7,7 +7,7 @@ inputs:
     required: false
     default: ${{ github.ref_name }}
   files:
-    description: 'Local file paths or glob patterns to attach, one per line'
+    description: 'Local file paths or glob patterns to attach, one per line; blank lines are skipped'
     required: true
 
 runs:
@@ -24,6 +24,10 @@ runs:
         mapfile -t paths < <(printf '%s' "${ASSET_PATHS}")
         files=()
         for path in "${paths[@]}"; do
+          # A blank line names nothing, so it may separate groups of files.
+          if [[ -z "${path//[[:space:]]/}" ]]; then
+            continue
+          fi
           if [[ -f "${path}" ]]; then
             files+=("${path}")
           else
